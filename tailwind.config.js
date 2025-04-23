@@ -34,6 +34,7 @@ export default {
     },
   },
   plugins: [
+    require('@tailwindcss/aspect-ratio'),
     require('@tailwindcss/typography'), // Garanta que este plugin está aqui
     // require('@tailwindcss/aspect-ratio'), // Adicione se usou no passo anterior
   ],

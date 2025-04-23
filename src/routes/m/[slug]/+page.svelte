@@ -3,18 +3,14 @@
     import { page } from '$app/stores';
     import { onMount, onDestroy } from 'svelte';
     import confetti from 'canvas-confetti';
-    import { register } from 'swiper/element/bundle';
-    // Import Swiper styles
-    import 'swiper/css';
-    import 'swiper/css/navigation';
-    import 'swiper/css/pagination';
-    import 'swiper/css/autoplay';
-    import 'swiper/css/effect-fade';
+    // Import Swiper styles removed as we're using custom carousel
 
     // --- State ---
     let memoryData = null;
     let isLoading = true;
     let errorMessage = null;
+    let currentSlide = 0;
+    let totalSlides = 0;
     const slug = $page.params.slug;
     // TODO: Mover para .env
     const API_BASE_URL = 'http://localhost:9090/api/memory';
@@ -23,6 +19,8 @@
     let days = 0, hours = 0, minutes = 0, seconds = 0, countdownFinished = false, intervalId = null;
     // Confetti State
     let confettiCanvas = null, confettiInstance = null;
+    // Carousel State
+    let carouselInterval = null;
 
     // --- Helper Functions ---
     function updateCountdown() {
@@ -36,8 +34,31 @@
         if (!url || typeof url !== 'string') return null; try { const urlObj = new URL(url); if (urlObj.hostname.includes('spotify.com') && urlObj.pathname.includes('/track/')) { const parts = urlObj.pathname.split('/'); const trackIdIndex = parts.indexOf('track'); if (trackIdIndex !== -1 && parts.length > trackIdIndex + 1) { return parts[trackIdIndex + 1]; } } } catch (e) { console.error("URL Spotify inválida:", url, e); } return null;
     }
 
+    // --- Carousel Functions ---
+    function nextSlide() {
+        if (!memoryData?.imageUrls || memoryData.imageUrls.length === 0) return;
+        currentSlide = (currentSlide + 1) % memoryData.imageUrls.length;
+    }
+
+    function prevSlide() {
+        if (!memoryData?.imageUrls || memoryData.imageUrls.length === 0) return;
+        currentSlide = (currentSlide - 1 + memoryData.imageUrls.length) % memoryData.imageUrls.length;
+    }
+
+    function startCarousel() {
+        if (carouselInterval) clearInterval(carouselInterval);
+        carouselInterval = setInterval(() => {
+            nextSlide();
+        }, 4500);
+    }
+
     // --- Reactive Variables ---
     $: spotifyEmbedUrl = (() => { const trackId = getSpotifyTrackId(memoryData?.musicUrl); return trackId ? `https://open.spotify.com/embed/track/${trackId}?utm_source=generator&theme=0` : null; })();
+    $: carouselTransform = `translateX(-${currentSlide * 100}%)`;
+    $: if (memoryData?.imageUrls) {
+        totalSlides = memoryData.imageUrls.length;
+        startCarousel();
+    }
 
     // --- Cleanup ---
     const cleanupConfetti = () => { if (confettiInstance) { confettiInstance.reset(); confettiInstance = null; console.log("Confetti resetado.");} if (confettiCanvas && document.body.contains(confettiCanvas)) { document.body.removeChild(confettiCanvas); confettiCanvas = null; console.log("Canvas do Confetti removido."); } };
@@ -55,7 +76,6 @@
 
     // --- Lifecycle ---
     onMount(async () => {
-        register(); // Registra Swiper
         isLoading = true; errorMessage = null; memoryData = null;
         // *** CORREÇÃO DA URL DA API ***
         const apiUrl = `${API_BASE_URL}/${slug}`;
@@ -72,151 +92,294 @@
         finally { isLoading = false; }
     });
 
-    onDestroy(() => { if (intervalId) clearInterval(intervalId); cleanupConfetti(); });
-
+    onDestroy(() => {
+        if (intervalId) clearInterval(intervalId);
+        if (carouselInterval) clearInterval(carouselInterval);
+        cleanupConfetti();
+    });
 </script>
 
-
-<div class="relative min-h-screen w-full flex flex-col items-center justify-center p-4 pt-10 sm:p-6 lg:p-8 font-sans antialiased overflow-hidden">
-
-    <div class="absolute inset-0 z-0 background-gradient-layer">
-    </div>
-
-
-    {#if isLoading}
-        <div class="text-center text-indigo-200 z-50"> <svg class="animate-spin mx-auto h-10 w-10 text-indigo-300 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle> <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg> Carregando... </div>
-    {/if}
-
-    {#if errorMessage}
-        <div class="bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-lg max-w-md mx-auto text-center border-t-4 border-red-500 z-0"> <h2 class="text-xl font-semibold text-red-700 mb-3 font-heading">Problema</h2> <p class="text-gray-700">{errorMessage}</p> <a href="/admin" class="mt-4 inline-block text-sm text-indigo-700 hover:underline font-medium">Admin</a> </div>
-    {/if}
-
-    {#if !isLoading && !errorMessage && memoryData}
-        <div class="relative z-1 w-full max-w-xl bg-slate-900/80 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden transition-opacity duration-500 ease-in-out opacity-100 text-slate-200 ring-1 ring-white/10">
-
-            <div class="p-4 sm:p-5 text-center bg-black/20 border-b border-white/10">
-                <h2 class="font-heading text-lg font-semibold text-indigo-300 tracking-wide">Nossa Trilha Sonora</h2>
-            </div>
-
-            {#if spotifyEmbedUrl}
-                <div class="p-4 sm:p-5">
-                    <iframe title="Spotify Player" style="border-radius:12px;" src={spotifyEmbedUrl} width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-                </div>
-            {:else if memoryData.musicUrl}
-                <div class="p-4 sm:p-5 text-center text-xs text-slate-400">
-                    <a href={memoryData.musicUrl} target="_blank" class="hover:underline">Link da música</a>
-                </div>
-            {/if}
-
-            <div class="p-6 sm:p-8 text-slate-300">
-
-                {#if memoryData.targetDate}
-                    <div class="mb-8 p-4 bg-black/20 rounded-lg text-center ring-1 ring-white/10">
-                        <p class="text-xs sm:text-sm text-indigo-300 font-semibold tracking-wide uppercase mb-1"> {countdownFinished ? '✨ O Dia Chegou! ✨' : 'Contagem Para'} </p>
-                        {#if !countdownFinished}
-                            <div class="flex justify-center items-baseline space-x-2 text-3xl sm:text-4xl font-bold text-white tabular-nums">
-                                <div>{days}<span class="text-xs font-medium ml-1 text-slate-400">d</span></div>
-                                <div>{hours}<span class="text-xs font-medium ml-1 text-slate-400">h</span></div>
-                                <div>{minutes}<span class="text-xs font-medium ml-1 text-slate-400">m</span></div>
-                                <div>{seconds}<span class="text-xs font-medium ml-1 text-slate-400">s</span></div>
-                            </div>
-                        {:else}
-                            <div class="text-3xl font-bold text-white animate-pulse"> 💖 !!! 💖 </div>
-                        {/if}
-                        <p class="text-xs text-indigo-300 mt-2"> ({new Date(memoryData.targetDate).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' })}) </p>
-                    </div>
-                {/if}
-
-                <div class="prose prose-lg prose-invert max-w-none mb-8">
-                    <p class="whitespace-pre-wrap">{memoryData.dedicatedText}</p>
-                </div>
-
-                {#if memoryData.imageUrls && memoryData.imageUrls.length > 0}
-                    <div class="mb-8 relative group">
-                        <swiper-container
-                                slides-per-view="1" space-between="15" loop="true"
-                                pagination="true" pagination-clickable="true" navigation="true"
-                                keyboard="true"
-                                autoplay="true" autoplay-delay="4500" autoplay-disable-on-interaction="false"
-                                effect="fade" class="rounded-lg overflow-hidden shadow-md bg-black/30 aspect-video" style="--swiper-navigation-color: rgba(255,255,255,0.6); --swiper-pagination-color: rgba(255,255,255,0.8); --swiper-pagination-bullet-inactive-color: rgba(255,255,255,0.4); --swiper-pagination-bullet-size: 8px;"
-                        >
-                            {#each memoryData.imageUrls as imageUrl, index}
-                                <swiper-slide class="flex items-center justify-center">
-                                    <img src={imageUrl}
-                                         alt="Memória {index + 1}"
-                                         class="max-w-full max-h-[70vh] object-contain block"
-                                         loading="lazy"
-                                    />
-                                </swiper-slide>
-                            {/each}
-                        </swiper-container>
-                    </div>
-                {:else}
-                    <p class="text-center text-slate-500 italic mb-8">(Nenhuma imagem)</p>
-                {/if}
-
-                {#if memoryData.slug}
-                    <div class="mt-8 pt-6 border-t border-white/10 text-center opacity-60 hover:opacity-90 transition-opacity">
-                        <p class="text-xs text-slate-400 mb-2">QR Code:</p>
-                        <div class="inline-block p-1 bg-white/80 border border-white/20 rounded shadow-sm">
-                            <img src="{API_BASE_URL}/{memoryData.slug}/qrcode" alt="QR Code" class="w-16 h-16">
-                        </div>
-                    </div>
-                {/if}
-            </div>
+{#if !isLoading && !errorMessage && memoryData}
+    <div class="preview">
+        <!-- URL header -->
+        <div class="header-url">
+            <span class="text-background">memoryiit.com/{memoryData.slug}</span>
         </div>
 
-    {/if}
+        <!-- Spotify embed centered -->
+        {#if spotifyEmbedUrl}
+            <div class="spotify-embed">
+                <iframe
+                        title="Spotify Player"
+                        class="w-full spotify-iframe"
+                        src={spotifyEmbedUrl}
+                        frameborder="0"
+                        allowfullscreen
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                        loading="lazy"
+                ></iframe>
+            </div>
+        {/if}
 
-    <footer class="relative z-0 mt-8 text-center text-xs text-slate-400/70"> Criado com ❤️ para você! </footer>
+        <!-- Custom Carousel -->
+        {#if memoryData.imageUrls && memoryData.imageUrls.length > 0}
+            <div class="img-content border-2 border-transparent">
+                <div class="carousel-inner" style="transform: {carouselTransform}">
+                    {#each memoryData.imageUrls as imageUrl, index}
+                        <div class="carousel-item">
+                            <img class="img-carousel" src={imageUrl} alt="Carousel image" loading="lazy">
+                        </div>
+                    {/each}
+                </div>
 
-</div>
+                <!-- Optional: Navigation arrows -->
+                <button class="carousel-control prev" on:click={prevSlide}>‹</button>
+                <button class="carousel-control next" on:click={nextSlide}>›</button>
+
+                <!-- Optional: Dots indicators -->
+                <div class="carousel-dots">
+                    {#each Array(totalSlides) as _, index}
+                        <span
+                                class="dot"
+                                class:active={currentSlide === index}
+                                on:click={() => currentSlide = index}
+                        ></span>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
+        <!-- Main title & single counter -->
+        <div class="text-block">
+            <h1 class="title">{memoryData.title}</h1>
+            <p class="subtitle">
+                {days} dias, {hours} horas, {minutes} minutos e {seconds} segundos
+            </p>
+            <hr class="divisor" />
+            <p class="body-text">{memoryData.dedicatedText}</p>
+        </div>
+    </div>
+{/if}
 
 <style>
-    /* Estilo Global para o body */
+    /* 1) Reset global */
+    :global(html, body) {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
     :global(body) {
+        padding: 1rem;
         scroll-behavior: smooth;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        background: var(--vc-black);
+        color: var(--vc-white);
+        font-family: var(--vc-font-family);
+        line-height: var(--vc-leading-normal);
     }
 
-    .background-gradient-layer {
-        /* Cor de fundo de fallback caso o gradiente não carregue */
-        background-color: #0D1321; /* Um azul bem escuro */
+    :global(*), :global(*::before), :global(*::after) {
+        box-sizing: border-box;
+        border-width: 0;
+        border-style: solid;
+        border-color: #e5e7eb;
+    }
 
-        /* Múltiplas camadas de gradiente: linear por cima (simulando overlay), radial por baixo (o novo fundo) */
-        background-image:
-            /* Simula o gradiente escuro de overlay (ajuste opacidade/cores se quiser) */
-                linear-gradient(to bottom right,
-                rgba(0,0,0,0.4), /* Preto com 40% opacidade */
-                rgba(0,0,0,0.6) 50%, /* Preto com 60% opacidade no meio */
-                rgba(0,0,0,0.7)), /* Preto com 70% opacidade no canto */
-                    /* Gradiente radial: centro ligeiramente mais claro/azulado para bordas mais escuras */
-                radial-gradient(circle at center,
-                #1A2035 0%,   /* Azul escuro no centro */
-                #0D1321 50%,  /* Um azul mais profundo um pouco afastado */
-                #000000 100%); /* Preto nas bordas */
+    /* 2) Design tokens */
+    :global(:root) {
+        --vc-white: #ffffff;
+        --vc-black: #000000;
+        --vc-gray-900: #0f172a;
+        --vc-font-family: BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+        --vc-text-sm: 14px;
+        --vc-text-lg: 18px;
+        --vc-text-xl: 20px;
+        --vc-text-2xl: 24px;
+        --vc-leading-normal: 1.5;
+        --vc-rounded-md: .375rem;
+        --spacing-section: 2rem;
+    }
 
-        /* Garante que o gradiente cubra toda a área */
-        background-size: cover;
-        background-repeat: no-repeat;
+    /* 3) Container preview */
+    .preview {
+        background: var(--vc-gray-900);
+        border-radius: 9px;
+        padding: 1rem;
+        height: 100%;
+        max-height: 730px;
+        width: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
-    /* Estilos do Swiper MOVIDOS PARA CÁ */
-    :global(swiper-container) {
-        /* Ajusta tamanho da seta via CSS var */
-        --swiper-navigation-size: 30px;
-        /* Adiciona outros estilos globais do swiper se necessário */
+    .preview > * {
+        margin-bottom: var(--spacing-section);
     }
-    /* Oculta botões por padrão e mostra no hover do container (classe 'group' adicionada no div pai) */
-    :global(.swiper-button-prev), :global(.swiper-button-next) {
-        opacity: 0;
-        transition: opacity 0.3s ease;
+    .preview > :last-child {
+        margin-bottom: 0;
     }
-    :global(.group:hover .swiper-button-prev), :global(.group:hover .swiper-button-next) {
+
+    /* URL pill */
+    .header-url .text-background {
+        display: inline-block;
+        background-color: rgba(255, 255, 255, 0.2);
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--vc-rounded-md);
+        font-size: var(--vc-text-sm);
+    }
+
+    /* Spotify embed */
+    .spotify-embed {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        margin-bottom: var(--spacing-section);
+    }
+    .spotify-iframe {
+        width: 100%;
+        height: 152px;
+    }
+
+    /* Custom Carousel Styles to match the example */
+    .img-content {
+        position: relative;
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto var(--spacing-section);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 450px;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .carousel-inner {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.5s ease;
+    }
+
+    .carousel-item {
+        min-width: 100%;
+        height: 100%;
+        flex-shrink: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .img-carousel {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    /* Optional: Navigation Controls */
+    .carousel-control {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0, 0, 0, 0.5);
+        border: none;
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0.7;
+        z-index: 1;
+    }
+    .carousel-control:hover {
         opacity: 1;
     }
+    .prev {
+        left: 10px;
+    }
+    .next {
+        right: 10px;
+    }
 
-    /* Customização Prose (Opcional) */
-    :global(.prose-invert p) { color: theme('colors.slate.300'); }
-    :global(.prose-invert strong) { color: theme('colors.slate.100'); }
+    /* Optional: Dot indicators */
+    .carousel-dots {
+        position: absolute;
+        bottom: 10px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+    }
+    .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.5);
+        cursor: pointer;
+    }
+    .dot.active {
+        background: white;
+    }
+
+    /* Divider */
+    .divisor {
+        width: 60px;
+        height: 2px;
+        background-color: var(--vc-white);
+        margin: 1rem auto;
+        border: none;
+    }
+
+    /* Text block */
+    .text-block {
+        text-align: center;
+        max-width: 600px;
+    }
+    .title {
+        font-size: var(--vc-text-2xl);
+        font-weight: var(--vc-font-semibold);
+    }
+    .subtitle {
+        margin-top: 0.5rem;
+        font-size: var(--vc-text-lg);
+        font-weight: var(--vc-font-medium);
+    }
+    .body-text {
+        margin-top: 1rem;
+        font-size: var(--vc-text-sm);
+        color: var(--vc-gray-200);
+    }
+
+    /* Responsividade para iPhone XR */
+    @media only screen and (max-width: 414px) {
+        :global(body) { padding: 0.5rem; }
+        .preview { padding: 0.5rem; max-height: none; }
+        .header-url .text-background { font-size: 12px; padding: 0.2rem 0.5rem; }
+        .spotify-iframe { height: 120px; }
+        .title { font-size: 20px; }
+        .subtitle { font-size: 16px; }
+        .body-text { font-size: 13px; }
+
+        .img-content {
+            max-width: 100%;
+            height: auto;
+            aspect-ratio: 5/9;
+            max-height: 450px;
+        }
+
+        .carousel-control {
+            width: 30px;
+            height: 30px;
+            font-size: 18px;
+        }
+    }
 </style>
