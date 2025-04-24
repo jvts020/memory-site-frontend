@@ -11,6 +11,7 @@
     let errorMessage = null;
     let currentSlide = 0;
     let totalSlides = 0;
+    const dividerImageUrl = '/images/divider.png'
     const slug = $page.params.slug;
     // TODO: Mover para .env
     const API_BASE_URL = 'http://localhost:9090/api/memory';
@@ -103,7 +104,7 @@
     <div class="preview">
         <!-- URL header -->
         <div class="header-url">
-            <span class="text-background">memoryiit.com/{memoryData.slug}</span>
+            <span class="text-background">SiteDaPenelope/{memoryData.slug}</span>
         </div>
 
         <!-- Spotify embed centered -->
@@ -332,7 +333,7 @@
 
     /* Divider */
     .divisor {
-        width: 60px;
+        width: 320px;
         height: 2px;
         background-color: var(--vc-white);
         margin: 1rem auto;
@@ -380,6 +381,76 @@
             width: 30px;
             height: 30px;
             font-size: 18px;
+        }
+    }
+
+    /* Media query para telas médias */
+    @media screen and (min-width: 768px) {
+        .preview {
+            padding: 1.5rem;
+            max-width: 90%;
+            margin: 0 auto;
+        }
+
+        .img-content {
+            height: 500px;  /* Um pouco maior em telas médias */
+        }
+
+        .carousel-control {
+            width: 45px;
+            height: 45px;
+            font-size: 28px;
+        }
+    }
+
+    /* Media query para telas grandes */
+    @media screen and (min-width: 1280px) {
+        .preview {
+            padding: 2rem;
+            max-width: 80%;
+            max-height: 80vh;
+            margin: 0 auto;
+        }
+
+        .img-content {
+            height: 550px;  /* Ainda maior em telas grandes */
+            max-width: 70%;
+        }
+
+        .text-block {
+            max-width: 70%;
+        }
+
+        .title {
+            font-size: 32px;  /* Título maior em telas grandes */
+        }
+
+        .subtitle {
+            font-size: 20px;
+        }
+
+        .body-text {
+            font-size: 16px;
+        }
+
+        .divider-img {
+            max-width: 180px;  /* Divider um pouco maior */
+        }
+    }
+
+    /* Media query para telas extra grandes */
+    @media screen and (min-width: 1920px) {
+        .preview {
+            max-width: 70%;
+        }
+
+        .img-content {
+            height: 600px;
+            max-width: 60%;
+        }
+
+        .text-block {
+            max-width: 60%;
         }
     }
 </style>
