@@ -14,7 +14,7 @@
     const dividerImageUrl = '/images/divider.png'
     const slug = $page.params.slug;
     // TODO: Mover para .env
-    const API_BASE_URL = 'https://memory-site-backend.onrender.com/api/memory/';
+    const API_BASE_URL = 'import.meta.env.VITE_API_BASE_URL';
 
     // Countdown State
     let days = 0, hours = 0, minutes = 0, seconds = 0, countdownFinished = false, intervalId = null;
