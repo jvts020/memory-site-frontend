@@ -15,7 +15,7 @@
   let createdPageUrl = '';
   let createdQrCodeUrl = '';
 
-  const API_BASE_URL = 'http://localhost:9090/api/memory';
+  const API_BASE_URL = 'https://memory-site-backend.onrender.com/api/memory';
 
   async function handleSubmit() {
     isLoading = true;
