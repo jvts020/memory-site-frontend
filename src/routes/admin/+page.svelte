@@ -15,7 +15,7 @@
   let createdPageUrl = '';
   let createdQrCodeUrl = '';
 
-  const API_BASE_URL = 'https://memory-site-backend.onrender.com/api/memory';
+  const API_BASE_URL = 'import.meta.env.VITE_API_BASE_URL';
 
   async function handleSubmit() {
     isLoading = true;
