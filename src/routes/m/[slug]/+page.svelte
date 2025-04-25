@@ -268,9 +268,9 @@
     }
 
     .carousel-item {
-        min-width: 100%;
+        flex: 0 0 100%;
+        max-width: 100%;
         height: 100%;
-        flex-shrink: 0;
         display: flex;
         justify-content: center;
         align-items: center;
